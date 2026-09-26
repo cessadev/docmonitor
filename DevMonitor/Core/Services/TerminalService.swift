@@ -12,10 +12,22 @@ enum TerminalServiceError: LocalizedError {
 }
 
 class TerminalService {
+    // Shell-quotes a string for safe use as a single argument to /bin/sh
+    private func shellQuoted(_ string: String) -> String {
+        "'" + string.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    // Escapes a string for embedding inside a double-quoted AppleScript
+    private func appleScriptQuoted(_ string: String) -> String {
+        string
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
     func openShell(containerName: String) throws {
-        let escapedName = containerName.replacingOccurrences(of: "\"", with: "\\\"")
-        let dockerCommand = "docker exec -it \(escapedName) bash || docker exec -it \(escapedName) sh"
-        let escapedCommand = dockerCommand.replacingOccurrences(of: "\"", with: "\\\"")
+        let quotedName  = shellQuoted(containerName)
+        let dockerCommand = "docker exec -it \(quotedName) bash || docker exec -it \(quotedName) sh"
+        let escapedCommand = appleScriptQuoted(dockerCommand)
 
         let script = """
         tell application "Terminal"
