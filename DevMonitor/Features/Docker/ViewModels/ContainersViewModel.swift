@@ -87,12 +87,17 @@ class ContainersViewModel {
         }
     }
     
+    @MainActor
+    func openTerminal(for container: DockerContainer) {
+        do {
+            try terminalService.openShell(containerName: container.displayName)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+    
     private func containerNameExists(_ name: String) -> Bool {
         let target = name.trimmingCharacters(in: .whitespaces).lowercased()
         return containers.contains { $0.displayName.lowercased() == target }
-    }
-    
-    func openTerminal(for container: DockerContainer) {
-        terminalService.openShell(containerName: container.displayName)
     }
 }
