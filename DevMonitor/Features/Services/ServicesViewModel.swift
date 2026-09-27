@@ -12,24 +12,23 @@ class ServicesViewModel {
     private let dockerSocketPath = "/var/run/docker.sock"
 
     func refresh() {
-        let processNames = processService.runningProcessNames()
-        let runningApps  = NSWorkspace.shared.runningApplications
-            .compactMap { $0.localizedName?.lowercased() }
-
-        for index in services.indices {
-            let name = services[index].processName.lowercased()
-
-            let processRunning =
-                runningApps.contains(where: { $0.contains(name) }) ||
-                processNames.contains(where: { $0.lowercased().contains(name) })
-
-            services[index].isRunning = processRunning
-        }
-
-        // Socket check off main thread
         Task.detached(priority: .utility) {
+            let processNames    = await self.processService.runningProcessNames()
             let socketReachable = self.isDockerSocketReachable()
+            let runningApps     = NSWorkspace.shared.runningApplications
+                .compactMap { $0.localizedName?.lowercased() }
+
             await MainActor.run {
+                for index in self.services.indices {
+                    let name = self.services[index].processName.lowercased()
+
+                    let processRunning =
+                        runningApps.contains(where: { $0.contains(name) }) ||
+                        processNames.contains(where: { $0.lowercased().contains(name) })
+
+                    self.services[index].isRunning = processRunning
+                }
+
                 if let index = self.services.indices.first(where: {
                     self.services[$0].processName.lowercased() == "docker"
                 }) {
