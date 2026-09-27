@@ -17,7 +17,7 @@ struct BuildImageView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Button {
-                    Task { await vm.selectDirectory() }
+                    Task { vm.selectDirectory() }
                 } label: {
                     Text("Browse")
                         .font(AppFont.action)

@@ -102,17 +102,6 @@ class ComposeService {
 
         return outputData
     }
-    
-    private var dockerPath: String {
-        let candidates = [
-            "/usr/local/bin/docker",
-            "/opt/homebrew/bin/docker",
-            "/usr/bin/docker",
-        ]
-        return candidates.first {
-            FileManager.default.fileExists(atPath: $0)
-        } ?? "/usr/local/bin/docker"
-    }
 
     private func runComposeOutput(args: [String], workingDirectory: String) -> String? {
         guard let data = try? runCompose(args: args, workingDirectory: workingDirectory) else {
