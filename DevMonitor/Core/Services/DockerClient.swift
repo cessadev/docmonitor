@@ -9,17 +9,10 @@ class DockerClient {
 
     // Containers
     func fetchContainers() async throws -> [DockerContainer] {
-        let responseData = try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let data = try self.sendRequest(
-                        "GET /containers/json?all=true HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
-                    )
-                    continuation.resume(returning: data)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+        let responseData = try await performBlocking {
+            try self.sendRequest(
+                "GET /containers/json?all=true HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+            )
         }
 
         guard let separatorRange = responseData.range(of: Data("\r\n\r\n".utf8)) else {
@@ -41,41 +34,20 @@ class DockerClient {
     }
 
     func startContainer(id: String) async throws {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    _ = try self.sendRequest("POST /containers/\(id)/start HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
-                    continuation.resume()
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+        _ = try await performBlocking {
+            try self.sendRequest("POST /containers/\(id)/start HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
         }
     }
 
     func stopContainer(id: String) async throws {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    _ = try self.sendRequest("POST /containers/\(id)/stop HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
-                    continuation.resume()
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+        _ = try await performBlocking {
+            try self.sendRequest("POST /containers/\(id)/stop HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
         }
     }
-    
+
     func deleteContainer(id: String) async throws {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    _ = try self.sendRequest("DELETE /containers/\(id)?force=true HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
-                    continuation.resume()
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+        _ = try await performBlocking {
+            try self.sendRequest("DELETE /containers/\(id)?force=true HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
         }
     }
     
@@ -87,15 +59,15 @@ class DockerClient {
         restartPolicy: String
     ) async throws {
         let containerName = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name
- 
-        // Build PortBindings dict: {"80/tcp": [{"HostPort": "8080"}, ...]}
+
+        // Build PortBindings: {"80/tcp": [{"HostPort": "8080"}, ...]}
         // Accepts "host:container", "host:container/udp" and "hostIP:host:container"
-        var bindingsByKey: [String: [[String: String]]] = [:]
-        var exposedPorts: [String: Any]                 = [:]
+        var bindingsByKey: [String: [CreateContainerRequestBody.HostBinding]] = [:]
+        var exposedPorts: [String: CreateContainerRequestBody.EmptyObject]    = [:]
         for binding in portBindings where !binding.trimmingCharacters(in: .whitespaces).isEmpty {
             let parts = binding.components(separatedBy: ":").map { $0.trimmingCharacters(in: .whitespaces) }
             guard parts.count == 2 || parts.count == 3 else { continue }
- 
+
             let hostIP: String?
             let hostPort: String
             let containerPart: String
@@ -108,7 +80,7 @@ class DockerClient {
                 hostPort      = parts[0]
                 containerPart = parts[1]
             }
- 
+
             // containerPart may already carry a protocol suffix, e.g. "80/udp"
             let containerProtoParts = containerPart.components(separatedBy: "/")
             let containerPort       = containerProtoParts[0]
@@ -116,56 +88,47 @@ class DockerClient {
                                      ? containerProtoParts[1].lowercased()
                                      : "tcp"
             let key = "\(containerPort)/\(proto)"
- 
-            var hostBinding: [String: String] = ["HostPort": hostPort]
-            if let hostIP { hostBinding["HostIp"] = hostIP }
- 
-            bindingsByKey[key, default: []].append(hostBinding)
-            exposedPorts[key] = [:]
+
+            bindingsByKey[key, default: []].append(
+                CreateContainerRequestBody.HostBinding(hostIp: hostIP, hostPort: hostPort)
+            )
+            exposedPorts[key] = CreateContainerRequestBody.EmptyObject()
         }
-        let portBindingsDict: [String: Any] = bindingsByKey
- 
+
         let filteredEnv = envVars.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
- 
-        let body: [String: Any] = [
-            "Image": imageName,
-            "Env": filteredEnv,
-            "ExposedPorts": exposedPorts,
-            "HostConfig": [
-                "PortBindings": portBindingsDict,
-                "RestartPolicy": ["Name": restartPolicy]
-            ]
-        ]
- 
-        let bodyData  = try JSONSerialization.data(withJSONObject: body)
+
+        let requestBody = CreateContainerRequestBody(
+            image: imageName,
+            env: filteredEnv,
+            exposedPorts: exposedPorts,
+            hostConfig: .init(
+                portBindings: bindingsByKey,
+                restartPolicy: .init(name: restartPolicy)
+            )
+        )
+
+        let bodyData  = try JSONEncoder().encode(requestBody)
         let bodyJSON  = String(data: bodyData, encoding: .utf8) ?? "{}"
-        let bodyBytes = bodyJSON.utf8.count
- 
+        let bodyBytes = bodyData.count
+
         let request = "POST /containers/create?name=\(containerName) HTTP/1.1\r\n" +
                       "Host: localhost\r\n" +
                       "Content-Type: application/json\r\n" +
                       "Content-Length: \(bodyBytes)\r\n" +
                       "Connection: close\r\n\r\n" +
                       bodyJSON
- 
-        let responseData = try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let data = try self.sendRequest(request)
-                    continuation.resume(returning: data)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+
+        let responseData = try await performBlocking {
+            try self.sendRequest(request)
         }
- 
+
         guard let headerEnd = responseData.range(of: Data("\r\n\r\n".utf8)) else {
             throw DockerError.emptyResponse
         }
         let headerString = String(data: responseData[..<headerEnd.lowerBound], encoding: .utf8) ?? ""
         let statusLine   = headerString.components(separatedBy: "\r\n").first ?? ""
         let statusCode   = Int(statusLine.components(separatedBy: " ").dropFirst().first ?? "") ?? 0
- 
+
         switch statusCode {
         case 201: return
         case 404: throw DockerError.requestFailed("Image '\(imageName)' not found locally")
@@ -176,17 +139,10 @@ class DockerClient {
     
     // Images
     func fetchImages() async throws -> [DockerImage] {
-        let responseData = try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let data = try self.sendRequest(
-                        "GET /images/json?dangling=false HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
-                    )
-                    continuation.resume(returning: data)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+        let responseData = try await performBlocking {
+            try self.sendRequest(
+                "GET /images/json?dangling=false HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+            )
         }
 
         guard let separatorRange = responseData.range(of: Data("\r\n\r\n".utf8)) else {
@@ -208,74 +164,54 @@ class DockerClient {
     }
 
     func deleteImage(id: String) async throws {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    _ = try self.sendRequest("DELETE /images/\(id)?force=false HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
-                    continuation.resume()
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+        _ = try await performBlocking {
+            try self.sendRequest("DELETE /images/\(id)?force=false HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
         }
     }
     
-    func pullImage(name: String, onProgress: @escaping (String) -> Void) async throws {
+    func pullImage(name: String, onProgress: @escaping @MainActor (String) -> Void) async throws {
         let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? name
         let request = "POST /images/create?fromImage=\(encoded) HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let fd = try self.openDockerSocket()
-                    defer { close(fd) }
+        try await performBlocking {
+            let fd = try self.openDockerSocket()
+            defer { close(fd) }
 
-                    var requestBytes = Array(request.utf8)
-                    guard write(fd, &requestBytes, requestBytes.count) >= 0 else {
-                        throw DockerError.connectionFailed
-                    }
+            var requestBytes = Array(request.utf8)
+            guard write(fd, &requestBytes, requestBytes.count) >= 0 else {
+                throw DockerError.connectionFailed
+            }
 
-                    // Read response headers
-                    var headerBuffer = Data()
-                    var bigBuffer    = [UInt8](repeating: 0, count: 4096)
-                    let separator    = Data("\r\n\r\n".utf8)
+            var headerBuffer = Data()
+            var bigBuffer    = [UInt8](repeating: 0, count: 4096)
+            let separator    = Data("\r\n\r\n".utf8)
 
-                    while !headerBuffer.contains(separator) {
-                        let n = read(fd, &bigBuffer, bigBuffer.count)
-                        if n <= 0 { break }
-                        headerBuffer.append(contentsOf: bigBuffer[..<n])
-                    }
+            while !headerBuffer.contains(separator) {
+                let n = read(fd, &bigBuffer, bigBuffer.count)
+                if n <= 0 { break }
+                headerBuffer.append(contentsOf: bigBuffer[..<n])
+            }
 
-                    // Stream body line by line
-                    var lineBuffer = ""
-                    var readBuf    = [UInt8](repeating: 0, count: 512)
-                    while true {
-                        let n = read(fd, &readBuf, readBuf.count)
-                        if n <= 0 { break }
-                        let chunk = String(bytes: readBuf[..<n], encoding: .utf8) ?? ""
-                        lineBuffer += chunk
+            var lineBuffer = ""
+            var readBuf    = [UInt8](repeating: 0, count: 512)
+            while true {
+                let n = read(fd, &readBuf, readBuf.count)
+                if n <= 0 { break }
+                let chunk = String(bytes: readBuf[..<n], encoding: .utf8) ?? ""
+                lineBuffer += chunk
 
-                        // Each JSON event is a separate line
-                        while let newline = lineBuffer.firstIndex(of: "\n") {
-                            let line = String(lineBuffer[..<newline]).trimmingCharacters(in: .whitespaces)
-                            lineBuffer = String(lineBuffer[lineBuffer.index(after: newline)...])
+                while let newline = lineBuffer.firstIndex(of: "\n") {
+                    let line = String(lineBuffer[..<newline]).trimmingCharacters(in: .whitespaces)
+                    lineBuffer = String(lineBuffer[lineBuffer.index(after: newline)...])
 
-                            // Skip chunked size lines
-                            if !line.isEmpty && line.hasPrefix("{") {
-                                if let data   = line.data(using: .utf8),
-                                   let json   = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                                   let status = json["status"] as? String {
-                                    let prog   = json["progress"] as? String ?? ""
-                                    let msg    = prog.isEmpty ? status : "\(status) \(prog)"
-                                    DispatchQueue.main.async { onProgress(msg) }
-                                }
-                            }
+                    if !line.isEmpty && line.hasPrefix("{") {
+                        if let data  = line.data(using: .utf8),
+                           let event = try? Self.jsonDecoder.decode(PullProgressEvent.self, from: data) {
+                            let progress = event.progress ?? ""
+                            let msg      = progress.isEmpty ? event.status : "\(event.status) \(progress)"
+                            Task { @MainActor in onProgress(msg) }
                         }
                     }
-
-                    continuation.resume()
-                } catch {
-                    continuation.resume(throwing: error)
                 }
             }
         }
@@ -335,5 +271,56 @@ class DockerClient {
         } catch {
             throw DockerError.connectionFailed
         }
+    }
+    
+    private struct CreateContainerRequestBody: Encodable {
+        struct HostBinding: Encodable {
+            let hostIp: String?
+            let hostPort: String
+            enum CodingKeys: String, CodingKey {
+                case hostIp   = "HostIp"
+                case hostPort = "HostPort"
+            }
+        }
+        struct RestartPolicy: Encodable {
+            let name: String
+            enum CodingKeys: String, CodingKey { case name = "Name" }
+        }
+        struct HostConfig: Encodable {
+            let portBindings: [String: [HostBinding]]
+            let restartPolicy: RestartPolicy
+            enum CodingKeys: String, CodingKey {
+                case portBindings  = "PortBindings"
+                case restartPolicy = "RestartPolicy"
+            }
+        }
+        // Docker expects `{}` per exposed port key; a property-less struct encodes to an empty JSON object.
+        struct EmptyObject: Encodable {}
+
+        let image: String
+        let env: [String]
+        let exposedPorts: [String: EmptyObject]
+        let hostConfig: HostConfig
+
+        enum CodingKeys: String, CodingKey {
+            case image        = "Image"
+            case env          = "Env"
+            case exposedPorts = "ExposedPorts"
+            case hostConfig   = "HostConfig"
+        }
+    }
+    
+    // One line of the streaming `/images/create` pull progress response
+    private nonisolated struct PullProgressEvent: Decodable {
+        let status: String
+        let progress: String?
+    }
+    
+    private func performBlocking<T: Sendable>(
+        _ work: @escaping @Sendable () throws -> T
+    ) async throws -> T {
+        try await Task.detached(priority: .userInitiated) {
+            try work()
+        }.value
     }
 }

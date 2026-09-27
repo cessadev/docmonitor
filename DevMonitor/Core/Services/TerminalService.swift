@@ -1,15 +1,38 @@
 import Foundation
 
+enum TerminalServiceError: LocalizedError {
+    case failedToOpen(underlying: Error)
+
+    var errorDescription: String? {
+        switch self {
+        case .failedToOpen(let underlying):
+            return "Couldn't open Terminal: \(underlying.localizedDescription)"
+        }
+    }
+}
+
 class TerminalService {
-    func openShell(containerName: String) {
-        let escapedName = containerName.replacingOccurrences(of: "\"", with: "\\\"")
-        let dockerCommand = "docker exec -it \(escapedName) bash || docker exec -it \(escapedName) sh"
-        let escapedCommand = dockerCommand.replacingOccurrences(of: "\"", with: "\\\"")
+    // Shell-quotes a string for safe use as a single argument to /bin/sh
+    private func shellQuoted(_ string: String) -> String {
+        "'" + string.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    // Escapes a string for embedding inside a double-quoted AppleScript
+    private func appleScriptQuoted(_ string: String) -> String {
+        string
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
+    func openShell(containerName: String) throws {
+        let quotedName  = shellQuoted(containerName)
+        let dockerCommand = "docker exec -it \(quotedName) bash || docker exec -it \(quotedName) sh"
+        let escapedCommand = appleScriptQuoted(dockerCommand)
 
         let script = """
         tell application "Terminal"
-            activate
             do script "\(escapedCommand)"
+            activate
         end tell
         """
 
@@ -20,6 +43,7 @@ class TerminalService {
         do {
             try process.run()
         } catch {
+            throw TerminalServiceError.failedToOpen(underlying: error)
         }
     }
 }
