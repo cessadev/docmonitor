@@ -3,6 +3,7 @@ import SwiftUI
 struct ImagesView: View {
 
     let images: [DockerImage]
+    let lockedImageIds: Set<String>
     let count: Int
     let isExpanded: Bool
     let pullExpanded: Bool
@@ -60,12 +61,14 @@ struct ImagesView: View {
                     VStack(spacing: 0) {
                         Spacer().frame(height: 2)
                         ForEach(images) { image in
-                            let isSelected = selectedImage?.id == image.id
+                            let isSelected     = selectedImage?.id == image.id
+                            let isDeleteLocked = lockedImageIds.contains(image.id)
 
                             if selectedImage == nil || isSelected {
                                 ImageRow(
                                     image: image,
                                     isSelected: isSelected,
+                                    isDeleteLocked: isDeleteLocked,
                                     onDelete: {
                                         await onDelete(image)
                                     },
