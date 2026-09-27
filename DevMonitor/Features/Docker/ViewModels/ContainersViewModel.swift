@@ -6,8 +6,14 @@ class ContainersViewModel {
 
     var containers: [DockerContainer] = []
     var error: String?
+    
+    // Image IDs backing at least one container — used to lock delete on the image side
+    var imageIdsInUse: Set<String> {
+        Set(containers.map { $0.imageId })
+    }
 
-    private let dockerClient = DockerClient.shared
+    private let dockerClient    = DockerClient.shared
+    private let terminalService = TerminalService()
 
     @MainActor
     func refresh() async {
@@ -33,7 +39,7 @@ class ContainersViewModel {
             } else {
                 try await dockerClient.startContainer(id: container.id)
             }
-            try? await Task.sleep(nanoseconds: 800_000_000)
+            try? await Task.sleep(nanoseconds: DockerSettleDelay.containerStateChange)
             await refresh()
         } catch {
             self.error = error.localizedDescription
@@ -44,7 +50,7 @@ class ContainersViewModel {
     func delete(_ container: DockerContainer) async {
         do {
             try await dockerClient.deleteContainer(id: container.id)
-            try? await Task.sleep(nanoseconds: 400_000_000)
+            try? await Task.sleep(nanoseconds: DockerSettleDelay.listMutation)
             await refresh()
         } catch {
             self.error = error.localizedDescription
@@ -77,7 +83,7 @@ class ContainersViewModel {
                 envVars: envVars,
                 restartPolicy: restartPolicy
             )
-            try? await Task.sleep(nanoseconds: 400_000_000)
+            try? await Task.sleep(nanoseconds: DockerSettleDelay.listMutation)
             await refresh()
             return (true, nil)
         } catch {
@@ -86,8 +92,17 @@ class ContainersViewModel {
         }
     }
     
+    @MainActor
+    func openTerminal(for container: DockerContainer) {
+        do {
+            try terminalService.openShell(containerName: container.displayName)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+    
     private func containerNameExists(_ name: String) -> Bool {
-        containers.map { $0.displayName.lowercased() }
-                   .contains(name.trimmingCharacters(in: .whitespaces).lowercased())
+        let target = name.trimmingCharacters(in: .whitespaces).lowercased()
+        return containers.contains { $0.displayName.lowercased() == target }
     }
 }

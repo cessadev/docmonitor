@@ -3,6 +3,7 @@ import SwiftUI
 struct ImagesView: View {
 
     let images: [DockerImage]
+    let lockedImageIds: Set<String>
     let count: Int
     let isExpanded: Bool
     let pullExpanded: Bool
@@ -60,20 +61,19 @@ struct ImagesView: View {
                     VStack(spacing: 0) {
                         Spacer().frame(height: 2)
                         ForEach(images) { image in
-                            let isSelected = selectedImage?.id == image.id
+                            let isSelected     = selectedImage?.id == image.id
+                            let isDeleteLocked = lockedImageIds.contains(image.id)
 
                             if selectedImage == nil || isSelected {
                                 ImageRow(
                                     image: image,
                                     isSelected: isSelected,
+                                    isDeleteLocked: isDeleteLocked,
                                     onDelete: {
                                         await onDelete(image)
                                     },
                                     onSelect: {
-                                        let index = images.firstIndex(where: { $0.id == image.id }) ?? 0
-                                        let duration = min(0.2 + Double(index) * 0.035, 0.5)
-
-                                        withAnimation(.easeOut(duration: duration)) {
+                                        withAnimation(.spring(duration: 0.3, bounce: 0.15)) {
                                             if isSelected {
                                                 selectedImage = nil
                                             } else {
@@ -82,7 +82,7 @@ struct ImagesView: View {
                                         }
                                     }
                                 )
-                                .transition(.opacity)
+                                .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
 
                                 if isSelected {
                                     Divider()
@@ -94,24 +94,21 @@ struct ImagesView: View {
                                             await onCreateContainer(image, name, ports, envVars, restartPolicy)
                                         },
                                         onDismiss: {
-                                            let index = images.firstIndex(where: { $0.id == image.id }) ?? 0
-                                            let duration = min(0.2 + Double(index) * 0.035, 0.5)
-
-                                            withAnimation(.easeOut(duration: duration)) {
+                                            withAnimation(.spring(duration: 0.3, bounce: 0.15)) {
                                                 selectedImage = nil
                                             }
                                         }
                                     )
                                     .padding(.horizontal, 4)
                                     .padding(.bottom, 6)
-                                    .transition(.opacity)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
                                 }
                             }
                         }
                         Spacer().frame(height: 4)
                     }
                     .animation(.spring(duration: 0.4, bounce: 0.1), value: images.count)
-                    .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 12))
+                    .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12))
                     .transition(.opacity)
                 }
                 

@@ -28,44 +28,31 @@ class ComposeService {
             return [:]
         }
 
-        var statuses: [String: DockerComposeProject.ComposeServiceStatus] = [:]
         let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        let decoder = JSONDecoder()
+        let entries: [ComposeServiceEntry]
 
         // Try JSON array first (Docker Compose v2.21+)
         if trimmed.hasPrefix("["),
-           let data   = trimmed.data(using: .utf8),
-           let array  = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-            for item in array {
-                if let service = item["Service"] as? String,
-                   let state   = item["State"] as? String {
-                    statuses[service] = state == "running" ? .running : .stopped
+           let data       = trimmed.data(using: .utf8),
+           let rawEntries = try? decoder.decode([FailableDecodable<ComposeServiceEntry>].self, from: data) {
+            entries = rawEntries.compactMap(\.value)
+        } else {
+            // Fallback: one JSON object per line (older versions)
+            entries = trimmed
+                .components(separatedBy: "\n")
+                .filter { $0.hasPrefix("{") }
+                .compactMap { line in
+                    guard let data = line.data(using: .utf8) else { return nil }
+                    return try? decoder.decode(ComposeServiceEntry.self, from: data)
                 }
-            }
-            return statuses
         }
 
-        // Fallback: one JSON object per line (older versions)
-        let lines = trimmed.components(separatedBy: "\n").filter { $0.hasPrefix("{") }
-        for line in lines {
-            guard let data    = line.data(using: .utf8),
-                  let json    = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let service = json["Service"] as? String,
-                  let state   = json["State"] as? String else { continue }
-            statuses[service] = state == "running" ? .running : .stopped
+        var statuses: [String: DockerComposeProject.ComposeServiceStatus] = [:]
+        for entry in entries {
+            statuses[entry.service] = entry.state == "running" ? .running : .stopped
         }
-
         return statuses
-    }
-
-    private var dockerPath: String {
-        let candidates = [
-            "/usr/local/bin/docker",
-            "/opt/homebrew/bin/docker",
-            "/usr/bin/docker",
-        ]
-        return candidates.first {
-            FileManager.default.fileExists(atPath: $0)
-        } ?? "/usr/local/bin/docker"
     }
 
     @discardableResult
@@ -74,7 +61,7 @@ class ComposeService {
         let outPipe = Pipe()
         let errPipe = Pipe()
 
-        process.executableURL       = URL(fileURLWithPath: dockerPath)
+        process.executableURL       = URL(fileURLWithPath: DockerCLILocator.executablePath)
         process.arguments           = args
         process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
         process.standardOutput      = outPipe
@@ -87,16 +74,33 @@ class ComposeService {
         ]
 
         try process.run()
+
+        var outputData = Data()
+        var errorData  = Data()
+
+        let outputDone = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            outputData = outPipe.fileHandleForReading.readDataToEndOfFile()
+            outputDone.signal()
+        }
+
+        let errorDone = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            errorData = errPipe.fileHandleForReading.readDataToEndOfFile()
+            errorDone.signal()
+        }
+
         process.waitUntilExit()
+        outputDone.wait()
+        errorDone.wait()
 
         // If exit code is non-zero, surface the stderr message
         if process.terminationStatus != 0 {
-            let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-            let errMsg  = String(data: errData, encoding: .utf8) ?? "Unknown error"
+            let errMsg = String(data: errorData, encoding: .utf8) ?? "Unknown error"
             throw ComposeError.commandFailed(errMsg.trimmingCharacters(in: .whitespacesAndNewlines))
         }
 
-        return outPipe.fileHandleForReading.readDataToEndOfFile()
+        return outputData
     }
 
     private func runComposeOutput(args: [String], workingDirectory: String) -> String? {
@@ -104,6 +108,22 @@ class ComposeService {
             return nil
         }
         return String(data: data, encoding: .utf8)
+    }
+    
+    private struct ComposeServiceEntry: Decodable {
+        let service: String
+        let state: String
+        enum CodingKeys: String, CodingKey {
+            case service = "Service"
+            case state   = "State"
+        }
+    }
+
+    private struct FailableDecodable<Wrapped: Decodable>: Decodable {
+        let value: Wrapped?
+        init(from decoder: Decoder) throws {
+            value = try? Wrapped(from: decoder)
+        }
     }
 }
 

@@ -6,24 +6,28 @@ struct ContainerRow: View {
     let isDeleteLocked: Bool
     let onToggle: () async -> Void
     let onDelete: () async -> Void
+    let onOpenTerminal: () -> Void
 
     @State private var isLoading = false
     @State private var isDeleting = false
     @State private var isHovered = false
     @State private var confirmDelete = false
-    @State private var isOn: Bool
+    @State private var pendingIsOn: Bool? = nil
 
-    init(container: DockerContainer,
-         isLocked: Bool,
-         isDeleteLocked: Bool,
-         onToggle: @escaping () async -> Void,
-         onDelete: @escaping () async -> Void) {
-        self.container      = container
-        self.isLocked       = isLocked
-        self.isDeleteLocked = isDeleteLocked
-        self.onToggle       = onToggle
-        self.onDelete       = onDelete
-        self._isOn          = State(initialValue: container.isRunning)
+    private var runningBinding: Binding<Bool> {
+        Binding(
+            get: { pendingIsOn ?? container.isRunning },
+            set: { newValue in
+                guard !isLocked else { return }
+                pendingIsOn = newValue
+                isLoading = true
+                Task {
+                    await onToggle()
+                    isLoading = false
+                    pendingIsOn = nil
+                }
+            }
+        )
     }
 
     var body: some View {
@@ -48,65 +52,79 @@ struct ContainerRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .layoutPriority(-1)
 
-            // Trash icon
-            if !isLocked && !isDeleteLocked && (isHovered || confirmDelete) {
-                if confirmDelete {
-                    Button {
-                        isDeleting = true
-                        Task {
-                            await onDelete()
-                            isDeleting    = false
-                            confirmDelete = false
+            // Trailing controls group
+            HStack(spacing: 6) {
+                if isHovered || confirmDelete {
+                    if confirmDelete {
+                        Button {
+                            isDeleting = true
+                            Task {
+                                await onDelete()
+                                isDeleting    = false
+                                confirmDelete = false
+                            }
+                        } label: {
+                            if isDeleting {
+                                ProgressView().controlSize(AppControl.switchControlSize)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                            } else {
+                                Text("Delete")
+                                    .font(AppFont.micro)
+                                    .foregroundStyle(.red)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                            }
                         }
-                    } label: {
-                        if isDeleting {
-                            ProgressView().controlSize(AppControl.switchControlSize)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
-                        } else {
-                            Text("Delete")
-                                .font(AppFont.micro)
-                                .foregroundStyle(.red)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
+                        .buttonStyle(CapsuleButtonStyle(tint: .destructive))
+                        .transition(.scale(scale: 0.85).combined(with: .opacity))
+                    } else {
+                        // Terminal
+                        if container.isRunning {
+                            Button {
+                                onOpenTerminal()
+                            } label: {
+                                Image("terminal-icon")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: AppIcon.terminalIcon, height: AppIcon.terminalIcon)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 7)
+                                    .padding(.top, 3)
+                                    .padding(.bottom, 3)
+                            }
+                            .buttonStyle(CapsuleButtonStyle(tint: .neutral))
+                            .transition(.scale(scale: 0.85).combined(with: .opacity))
+                        }
+                        // Trash
+                        if !isLocked && !isDeleteLocked {
+                            Button {
+                                withAnimation(.spring(duration: 0.2)) {
+                                    confirmDelete = true
+                                }
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(AppIcon.trashIcon)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 7)
+                                    .padding(.top, 3)
+                                    .padding(.bottom, 4)
+                            }
+                            .buttonStyle(CapsuleButtonStyle(tint: .neutral))
+                            .transition(.scale(scale: 0.85).combined(with: .opacity))
                         }
                     }
-                    .buttonStyle(CapsuleButtonStyle(tint: .destructive))
-                    .transition(.scale(scale: 0.85).combined(with: .opacity))
-                } else {
-                    Button {
-                        withAnimation(.spring(duration: 0.2)) {
-                            confirmDelete = true
-                        }
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(AppFont.bodyMedium)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 7)
-                            .padding(.top, 3)
-                            .padding(.bottom, 4)
-                    }
-                    .buttonStyle(CapsuleButtonStyle(tint: .neutral))
-                    .transition(.scale(scale: 0.85).combined(with: .opacity))
                 }
-            }
 
-            // Switch
-            Toggle("", isOn: $isOn)
-                .toggleStyle(.switch)
-                .controlSize(AppControl.switchControlSize)
-                .disabled(isLoading || isDeleting || isLocked)
-                .opacity(isLoading || isLocked ? 0.4 : 1.0)
-                .animation(.easeInOut(duration: 0.2), value: isLoading)
-                .animation(.easeInOut(duration: 0.2), value: isLocked)
-                .onChange(of: isOn) { _, _ in
-                    guard !isLocked else { return }
-                    isLoading = true
-                    Task {
-                        await onToggle()
-                        isLoading = false
-                    }
-                }
+                // Switch
+                Toggle("", isOn: runningBinding)
+                    .toggleStyle(.switch)
+                    .controlSize(AppControl.switchControlSize)
+                    .disabled(isLoading || isDeleting || isLocked)
+                    .opacity(isLoading || isLocked ? 0.4 : 1.0)
+                    .animation(.easeInOut(duration: 0.2), value: isLoading)
+                    .animation(.easeInOut(duration: 0.2), value: isLocked)
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
@@ -115,9 +133,6 @@ struct ContainerRow: View {
                 isHovered = hovered
                 if !hovered && !isDeleting { confirmDelete = false }
             }
-        }
-        .onChange(of: container.isRunning) { _, newValue in
-            isOn = newValue
         }
     }
 }

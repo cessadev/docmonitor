@@ -31,24 +31,27 @@ class ComposeViewModel {
 
     private let composeService = ComposeService.shared
 
+    private func performBlocking<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {
+        await Task.detached(priority: .userInitiated, operation: work).value
+    }
+
     @MainActor
     func refresh() async {
         let snapshot = projects
-        
-        let updated: [DockerComposeProject] = await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                var result = snapshot
-                for index in result.indices {
-                    result[index].serviceStatuses = self.composeService.refreshStatus(for: result[index])
-                }
-                continuation.resume(returning: result)
+        let service  = composeService
+
+        let updated: [DockerComposeProject] = await performBlocking {
+            var result = snapshot
+            DispatchQueue.concurrentPerform(iterations: result.count) { index in
+                result[index].serviceStatuses = service.refreshStatus(for: result[index])
             }
+            return result
         }
-        
-        // Merge back on main thread
+
+        let statusesByPath = Dictionary(updated.map { ($0.filePath, $0.serviceStatuses) }, uniquingKeysWith: { _, latest in latest })
         for index in projects.indices {
-            if let refreshed = updated.first(where: { $0.filePath == projects[index].filePath }) {
-                projects[index].serviceStatuses = refreshed.serviceStatuses
+            if let statuses = statusesByPath[projects[index].filePath] {
+                projects[index].serviceStatuses = statuses
             }
         }
     }
@@ -57,22 +60,16 @@ class ComposeViewModel {
     func up(_ project: DockerComposeProject) async {
         isLoadingProjectId = project.id
         error = nil
-
-        // Temporarily allow app to hold focus during potential TCC dialog
         NSApp.setActivationPolicy(.regular)
 
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    try self.composeService.up(project: project)
-                } catch {
-                    DispatchQueue.main.async { self.error = error.localizedDescription }
-                }
-                continuation.resume()
-            }
+        let service = composeService
+        let failure: String? = await performBlocking {
+            do { try service.up(project: project); return nil }
+            catch { return error.localizedDescription }
         }
-        try? await Task.sleep(nanoseconds: 1_500_000_000)
+        if let failure { error = failure }
 
+        try? await Task.sleep(nanoseconds: DockerSettleDelay.composeUp)
         NSApp.setActivationPolicy(.accessory)
         await refresh()
         isLoadingProjectId = nil
@@ -83,18 +80,14 @@ class ComposeViewModel {
         isLoadingProjectId = project.id
         error = nil
 
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    try self.composeService.down(project: project)
-                } catch {
-                    DispatchQueue.main.async { self.error = error.localizedDescription }
-                }
-                continuation.resume()
-            }
+        let service = composeService
+        let failure: String? = await performBlocking {
+            do { try service.down(project: project); return nil }
+            catch { return error.localizedDescription }
         }
-        try? await Task.sleep(nanoseconds: 2_500_000_000)
+        if let failure { error = failure }
 
+        try? await Task.sleep(nanoseconds: DockerSettleDelay.composeDown)
         await refresh()
         isLoadingProjectId = nil
     }
