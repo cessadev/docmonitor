@@ -4,17 +4,19 @@ struct DockerContainer: Identifiable, Decodable {
     let id: String
     let names: [String]
     let image: String
+    let imageId: String
     let state: String
     let status: String
     let labels: [String: String]
 
     enum CodingKeys: String, CodingKey {
-        case id     = "Id"
-        case names  = "Names"
-        case image  = "Image"
-        case state  = "State"
-        case status = "Status"
-        case labels = "Labels"
+        case id      = "Id"
+        case names   = "Names"
+        case image   = "Image"
+        case imageId = "ImageID"
+        case state   = "State"
+        case status  = "Status"
+        case labels  = "Labels"
     }
 
     var displayName: String {

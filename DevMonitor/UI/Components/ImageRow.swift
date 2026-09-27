@@ -3,6 +3,7 @@ import SwiftUI
 struct ImageRow: View {
     let image: DockerImage
     let isSelected: Bool
+    let isDeleteLocked: Bool
     let onDelete: () async -> Void
     let onSelect: () -> Void
 
@@ -65,7 +66,7 @@ struct ImageRow: View {
                     .transition(.scale(scale: 0.85).combined(with: .opacity))
                 } else {
                     HStack(spacing: 16) {
-                        if !isSelected {
+                        if !isSelected && !isDeleteLocked {
                             // Trash
                             Button {
                                 withAnimation(.spring(duration: 0.2)) {

@@ -83,6 +83,7 @@ struct ContentView: View {
                 // Images
                 ImagesView(
                     images: imagesVM.images,
+                    lockedImageIds: containersVM.imageIdsInUse,
                     count: imagesVM.images.count,
                     isExpanded: imagesExpanded,
                     pullExpanded: pullExpanded,

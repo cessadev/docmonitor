@@ -6,6 +6,11 @@ class ContainersViewModel {
 
     var containers: [DockerContainer] = []
     var error: String?
+    
+    // Image IDs backing at least one container — used to lock delete on the image side
+    var imageIdsInUse: Set<String> {
+        Set(containers.map { $0.imageId })
+    }
 
     private let dockerClient    = DockerClient.shared
     private let terminalService = TerminalService()
