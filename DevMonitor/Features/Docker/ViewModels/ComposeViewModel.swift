@@ -42,8 +42,10 @@ class ComposeViewModel {
 
         let updated: [DockerComposeProject] = await performBlocking {
             var result = snapshot
-            DispatchQueue.concurrentPerform(iterations: result.count) { index in
-                result[index].serviceStatuses = service.refreshStatus(for: result[index])
+            result.withUnsafeMutableBufferPointer { buffer in
+                DispatchQueue.concurrentPerform(iterations: buffer.count) { index in
+                    buffer[index].serviceStatuses = service.refreshStatus(for: buffer[index])
+                }
             }
             return result
         }
