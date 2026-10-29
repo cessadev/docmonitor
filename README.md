@@ -8,9 +8,7 @@
   A native macOS menu bar app to manage the images, containers and Compose projects of Docker.
 </p>
 
-<!-- Add a screenshot here, e.g. docs/screenshot.png:
 <p align="center"><img src="docs/screenshot.png" alt="DocMonitor screenshot" width="480"></p>
--->
 
 ## Features
 
@@ -28,7 +26,7 @@
 
 ## Installation
 
-DocMonitor is open source and distributed **without Apple notarization** (see [Why isn't it notarized?](#why-isnt-it-notarized)). That means macOS will warn you the first time you open it. This is expected, and it only has to be done once.
+DocMonitor is source-available and distributed **without Apple notarization** (see [Why isn't it notarized?](#why-isnt-it-notarized)). That means macOS will warn you the first time you open it. This is expected, and it only has to be done once.
 
 1. Download `DocMonitor-x.y.z.zip` from the [latest release](https://github.com/cessadev/docmonitor/releases/latest).
 2. *(Optional)* Verify the download against the SHA-256 published in the release notes:
@@ -81,12 +79,12 @@ The app is created at `build/Build/Products/Release/DocMonitor.app`. Building fr
 
 ## Why isn't it notarized?
 
-Notarization requires a paid Apple Developer Program membership. DocMonitor is a free, open-source project, so releases are signed with an *ad-hoc* signature instead. That signature does not identify a developer, but it does guarantee that the code has not been modified since it was built. If you would rather not trust a pre-built binary, build it yourself from source as shown above.
+Notarization requires a paid Apple Developer Program membership. DocMonitor is a free, source-available project, so releases are signed with an *ad-hoc* signature instead. That signature does not identify a developer, but it does guarantee that the code has not been modified since it was built. If you would rather not trust a pre-built binary, build it yourself from source as shown above.
 
 ## Contributing
 
-Issues and pull requests are welcome.
+Bug reports and suggestions are welcome as issues. If you want to contribute code, open an issue first so we can agree on it.
 
 ## License
 
-Released under the [MIT License](LICENSE).
+DocMonitor is licensed under the [PolyForm Strict License 1.0.0](LICENSE). You may use it for noncommercial purposes. Distributing it, modifying it or using it commercially requires the author's permission.

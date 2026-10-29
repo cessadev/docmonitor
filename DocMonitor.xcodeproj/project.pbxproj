@@ -271,7 +271,7 @@
 			name = DocMonitor;
 			packageProductDependencies = (
 			);
-			productName = DevMonitor;
+			productName = DocMonitor;
 			productReference = DBD6B445304222E900C8E719 /* DocMonitor.app */;
 			productType = "com.apple.product-type.application";
 		};
