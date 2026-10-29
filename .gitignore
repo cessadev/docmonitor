@@ -1,6 +1,4 @@
-# ========================
 # Xcode
-# ========================
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
 *.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
@@ -15,32 +13,24 @@
 !default.perspectivev3
 xcuserdata/
 
-# ========================
 # Build output
-# ========================
 build/
 DerivedData/
 *.ipa
 *.dSYM.zip
 *.dSYM
 
-# ========================
 # Swift Package Manager
-# ========================
 .build/
 .swiftpm/
 Packages/
 Package.resolved
 
-# ========================
-# CocoaPods (por si acaso)
-# ========================
+# CocoaPods
 Pods/
 Podfile.lock
 
-# ========================
-# macOS system files
-# ========================
+# macOS System Files
 .DS_Store
 .AppleDouble
 .LSOverride
@@ -51,21 +41,15 @@ Icon?
 .fseventsd
 .TemporaryItems
 
-# ========================
 # VS Code
-# ========================
 .vscode/
 
-# ========================
-# JetBrains / otros IDEs
-# ========================
+# JetBrains
 .idea/
 *.swp
 *.swo
 
-# ========================
-# Archivos de distribución
-# ========================
+# Distribution Files
 *.pkg
 *.dmg
 *.app
