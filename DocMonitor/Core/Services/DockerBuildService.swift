@@ -24,7 +24,7 @@ class DockerBuildService {
         ].joined(separator: ":")
         process.environment = env
 
-        let throttleQueue               = DispatchQueue(label: "devmonitor.build-output-throttle")
+        let throttleQueue               = DispatchQueue(label: "docmonitor.build-output-throttle")
         var pendingOutput               = ""
         var lastFlush                   = Date.distantPast
         let flushInterval: TimeInterval = 0.1

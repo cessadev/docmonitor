@@ -4,7 +4,7 @@ enum AppFont {
 
     // MARK: - Scale
 
-    /// Panel title — "DevMonitor"
+    /// Panel title — "DocMonitor"
     static let title: Font         = .system(size: 14, weight: .semibold)
 
     /// Primary row text — container name, image tag, service name

@@ -2,12 +2,12 @@ import SwiftUI
 import AppKit
 
 @main
-struct DevMonitorApp: App {
+struct DocMonitorApp: App {
 
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        MenuBarExtra("DevMonitor", image: "MenuBarIcon") {
+        MenuBarExtra("DocMonitor", image: "MenuBarIcon") {
             ContentView()
         }
         .menuBarExtraStyle(.window)
