@@ -64,15 +64,15 @@ You need Xcode 26 or later.
 ```bash
 git clone https://github.com/cessadev/docmonitor.git
 cd docmonitor
-open DevMonitor.xcodeproj
+open DocMonitor.xcodeproj
 ```
 
-Then press **Run** (⌘R). The Xcode project keeps its original `DevMonitor` name.
+Then press **Run** (⌘R).
 
 To produce a release build from the command line:
 
 ```bash
-xcodebuild -project DevMonitor.xcodeproj -scheme DevMonitor \
+xcodebuild -project DocMonitor.xcodeproj -scheme DocMonitor \
   -configuration Release -derivedDataPath build \
   CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO
 ```
