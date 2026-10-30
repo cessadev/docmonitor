@@ -4,6 +4,8 @@
 
 <h1 align="center">DocMonitor</h1>
 
+<p align="center">English · <a href="README.es.md">Español</a></p>
+
 <p align="center">
   A native macOS menu bar app to manage the images, containers and Compose projects of Docker.
 </p>
