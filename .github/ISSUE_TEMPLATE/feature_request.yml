@@ -1,0 +1,45 @@
+name: Feature request
+description: Suggest an improvement or a new feature
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggestions are welcome, and you can write in English or Spanish. The author decides what fits the project, so there is no guarantee that a suggestion will be implemented.
+
+        If you would like to contribute the code yourself, please read the [contributing guide](https://github.com/cessadev/docmonitor/blob/main/CONTRIBUTING.md) first: because of the license, code contributions need prior agreement.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem do you want to solve?
+      description: Describe the situation or limitation, before proposing a solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you like it to work? Optional.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Other ways you solve this today, or other approaches. Optional.
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you like to contribute the code?
+      description: This is only a preference. Any code contribution still needs the author's agreement first.
+      options:
+        - "No, I am only suggesting it"
+        - "Yes, after we agree on the change"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and could not find this suggestion.
+          required: true

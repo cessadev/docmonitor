@@ -1,0 +1,35 @@
+name: Permission request
+description: Ask for permission to do something the license does not cover
+title: "Permission request: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        DocMonitor is released under the [PolyForm Strict License 1.0.0](https://github.com/cessadev/docmonitor/blob/main/LICENSE). Without the author's permission you may not distribute it, modify it or use it commercially.
+
+        If you want to do any of those things, explain what you have in mind and the author may grant permission case by case. You can write in English or Spanish.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What do you want to do?
+      options:
+        - Use DocMonitor commercially
+        - Redistribute it or host a mirror
+        - Package it (for example, in a package manager)
+        - Publish a modified version
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What exactly do you want to do, and why? Include any relevant links.
+    validations:
+      required: true
+  - type: input
+    id: who
+    attributes:
+      label: Who is asking?
+      description: Your name, or the company or organization this is for. Optional.

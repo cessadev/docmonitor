@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Read the contributing guide
+    url: https://github.com/cessadev/docmonitor/blob/main/CONTRIBUTING.md
+    about: How to help, and what the license does and does not allow (PolyForm Strict).

@@ -1,0 +1,84 @@
+name: Bug report
+description: Something does not work as expected
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. You can write in English or Spanish.
+
+        Please search the [existing issues](https://github.com/cessadev/docmonitor/issues) first, and remove anything sensitive (container names, environment variables, registry credentials) from what you post.
+  - type: input
+    id: version
+    attributes:
+      label: DocMonitor version
+      description: The version you are running, for example the one in the release you downloaded.
+      placeholder: "1.0.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: install_source
+    attributes:
+      label: How did you install it?
+      options:
+        - Downloaded from a GitHub release
+        - Built from source with Xcode
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "26.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: mac_type
+    attributes:
+      label: Mac type
+      options:
+        - Apple silicon
+        - Intel
+    validations:
+      required: true
+  - type: input
+    id: docker
+    attributes:
+      label: Docker engine and version
+      description: Docker Desktop, Colima, OrbStack, etc.
+      placeholder: "Docker Desktop 4.x"
+    validations:
+      required: true
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open DocMonitor
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or error messages
+      description: Paste or drag images here. Optional.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and could not find this problem.
+          required: true
+        - label: I removed sensitive information from this report.
+          required: true
