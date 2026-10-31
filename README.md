@@ -85,7 +85,7 @@ Notarization requires a paid Apple Developer Program membership. DocMonitor is a
 
 ## Contributing
 
-Bug reports and suggestions are welcome as issues. If you want to contribute code, open an issue first so we can agree on it.
+Bug reports, suggestions and feedback are welcome as issues. Because of the license, code contributions need prior agreement: see [CONTRIBUTING.md](CONTRIBUTING.md) for how to help and what is not allowed.
 
 ## License
 

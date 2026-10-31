@@ -85,7 +85,7 @@ La notarización requiere una membresía de pago del Apple Developer Program. Do
 
 ## Contribuciones
 
-Los reportes de errores y las sugerencias son bienvenidos como issues. Si quieres aportar código, abre primero un issue para que lo acordemos.
+Los reportes de errores, las sugerencias y los comentarios son bienvenidos como issues. Por la licencia, las contribuciones de código requieren un acuerdo previo: consulta [CONTRIBUTING.es.md](CONTRIBUTING.es.md) para saber cómo ayudar y qué no está permitido.
 
 ## Licencia
 
